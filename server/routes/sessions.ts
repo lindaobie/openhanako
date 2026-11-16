@@ -1762,6 +1762,14 @@ export function createSessionsRoute(engine, hub = null) {
 
       return c.json({ messages, blocks: slicedBlocks, todos, hasMore, sessionFiles, revision });
     } catch (err) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code === "ENOENT" || code === "ENOTDIR") {
+        // The manifest can reference a session file that is not on disk yet:
+        // the JSONL is only written at turn end, so the gap lasts as long as
+        // the turn does. That is "not ready", not a server fault - answer 202
+        // so the client can simply poll again.
+        return c.body(null, 202);
+      }
       return c.json({ error: err.message }, 500);
     }
   });

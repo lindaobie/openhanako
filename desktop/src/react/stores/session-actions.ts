@@ -350,6 +350,12 @@ export async function loadMessages(forPath?: string): Promise<void> {
   useStore.getState().beginSessionFilesFlight(targetPath, myVersion);
   try {
     const res = await hanaFetch(sessionMessagesUrl(targetPath));
+    if (res.status === 202 || res.status === 204) {
+      // Server says the session file is not on disk yet. Nothing to hydrate;
+      // drop this poll and keep the current view (usually a live stream).
+      useStore.getState().consumeSessionFilesFlight(targetPath, myVersion);
+      return;
+    }
     const data = await res.json();
     const latestVersion =
       sessionScopedValue(useStore.getState() as Record<string, any>, useStore.getState()._loadMessagesVersion, targetPath) ?? 0;
